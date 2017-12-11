@@ -18,7 +18,10 @@
   ],
   "scripts": {
     "compile": "babel --presets metal -d lib/ src/",
-    "prepublish": "npm run compile"
+    "prepublish": "npm run compile",
+    "build": "WEBPACK_ENV=build webpack",
+    "dev": "WEBPACK_ENV=dev webpack --progress --colors --watch",
+    "test": "..."
   },
   "keywords": [
     "spa",
@@ -42,6 +45,7 @@
   "devDependencies": {
     "babel-cli": "^6.4.5",
     "babel-preset-metal": "^4.0.0",
+    "compression-webpack-plugin": "^1.0.1",
     "gulp": "^3.8.11",
     "gulp-connect": "^5.0.0",
     "gulp-header": "^1.7.1",
@@ -50,7 +54,10 @@
     "gulp-rename": "^1.2.2",
     "gulp-strip-debug": "^1.1.0",
     "metal-tools-build-rollup": "^2.0.6",
+    "progress-bar-webpack-plugin": "^1.10.0",
     "run-sequence": "^1.1.5",
-    "sinon": "1.17.7"
+    "sinon": "1.17.7",
+    "webpack": "^3.10.0",
+    "webpack-dashboard": "^1.0.2"
   }
 }
