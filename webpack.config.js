@@ -1,74 +1,90 @@
 const webpack = require('webpack');
 const path = require('path');
 const UglifyJsPlugin = webpack.optimize.UglifyJsPlugin;
-const ProgressBarPlugin = require('progress-bar-webpack-plugin')
-const CompressionPlugin = require("compression-webpack-plugin")
-const DashboardPlugin = require('webpack-dashboard/plugin');
+const CompressionPlugin = require("compression-webpack-plugin");
 const outputFile = 'senna';
 const env = process.env.WEBPACK_ENV;
 
-// if (env === 'build') {
-//   plugins.push(new UglifyJsPlugin({ minimize: true }));
-//   outputFile = outputFile + '.min.js';
-// } else {
-//   outputFile = outputFile + '.js';
-// }
+// // if (env === 'build') {
+// //   plugins.push(new UglifyJsPlugin({ minimize: true }));
+// //   outputFile = outputFile + '.min.js';
+// // } else {
+// //   outputFile = outputFile + '.js';
+// // }
 
 const config = {
-  entry: __dirname + '/src/senna.js',
+  target: 'node',
 
   devtool: 'source-map',
 
-  output: {
-    //só globals here
-    path: path.resolve(__dirname, '/build/webpack'),
-    filename: outputFile,
-    library: outputFile,
-    libraryTarget: 'umd',
-    umdNamedDefine: true
-  },
-
   module: {
-    loaders: [
-      {
-        test: /(\.js)$/,
-        loader: 'babel',
-        exclude: /(node_modules|lib)/
-      },
-    ]
+    rules:[{
+      test: /\.js/,
+      include: [
+        path.resolve(__dirname, 'src'),
+      ],
+      loader: "babel-loader",
+      options: { presets: ['@babel/preset-env'] },
+    }],
   },
 
   resolve: {
-    root: path.resolve('./src'),
-    extensions: ['', '.js']
+    modules: ["node_modules", path.resolve(__dirname, outputFile)],
   },
 
-  plugins: [
-    new ProgressBarPlugin(),
-    new DashboardPlugin({ port: 3001 }),
-    new CompressionPlugin({
-      test: /\.js/|/\.css/,
-      algorithm: 'gzip',
-      include: outputFile,
-    }),
-  ],
+  performance: {
+    hints: "warning",
+    maxAssetSize: 200000, // int (in bytes),
+    maxEntrypointSize: 400000, // int (in bytes)
+    assetFilter: function(assetFilename) {
+      return assetFilename.endsWith('.css') || assetFilename.endsWith('.js');
+    }
+  },
 
-  extensions: ['', '.js', '.css'],
+}
+
+const amd = {
+  entry: './src/senna.js',
+  output: {
+    filename: 'build/amd/' + outputFile + '.js',
+    libraryTarget: 'amd',
+    library: outputFile,
+  },
+  ... config,
 };
 
-
-module.exports = config;
-
-module.exports = [{
-  output: {
-    filename: 'build/amdWebpack/' + outputFile + '.js',
-    libraryTarget: 'amd'
-  },
+const cjs = {
   entry: './src/senna.js',
-}, {
   output: {
-    filename: 'build/cjsWebpack/' + outputFile + '.js',
-    libraryTarget: 'commonjs'
+    filename: 'build/cjs/' + outputFile + '.js',
+    libraryTarget: 'commonjs',
+    library: outputFile,
   },
+  ... config,
+};
+
+const global = {
   entry: './src/senna.js',
-}]
+  output: {
+    filename: 'build/global/' + outputFile + '.js',
+    libraryTarget: 'global',
+    library: outputFile,
+  },
+  ... config,
+};
+
+plugins: [
+  new UglifyJsPlugin({
+    include: './build/*',
+    compress: {
+      unused: true,
+      warnings: false,
+      drop_console: false
+    }
+  }),
+  // new CompressionPlugin({
+  //   path.resolve(__dirname, )
+  // })
+]
+
+module.exports = [amd, cjs, global];
