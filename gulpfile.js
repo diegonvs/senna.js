@@ -164,7 +164,7 @@ gulp.task('docs', function() {
 // Runner ----------------------------------------------------------------------
 
 gulp.task('default', function(done) {
-	runSequence('clean', 'css', 'build:globals', 'uglify', 'build:amd', 'banner', 'clean:debug', 'clean:debug:globals', 'clean:debug:amd', done);
+	runSequence('css', 'banner', done);
 });
 
 gulp.task('server', ['default'], function() {

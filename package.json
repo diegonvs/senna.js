@@ -17,12 +17,13 @@
     "test/**/*.js"
   ],
   "scripts": {
-    "compile": "babel --presets metal -d lib/ src/",
+    "build": "npm run build:amd && WEBPACK_ENV=build webpack && gulp",
+    "build:amd": "babel --presets metal -d build/amd/senna/src src/",
+    "compile": "babel --presets metal -d lib/ src/ --no-babelrc",
+    "dashboard": "webpack-dashboard",
     "prepublish": "npm run compile",
-    "build": "WEBPACK_ENV=build webpack",
-    "dev": "WEBPACK_ENV=dev webpack --progress --colors --watch",
     "test": "",
-    "dashboard": "webpack-dashboard"
+    "watch": "WEBPACK_ENV=dev webpack --progress --colors --watch"
   },
   "keywords": [
     "spa",
@@ -48,6 +49,7 @@
     "@babel/preset-env": "^7.0.0-beta.34",
     "babel-cli": "^6.4.5",
     "babel-loader": "^8.0.0-beta.0",
+    "babel-plugin-transform-es2015-modules-amd": "^6.24.1",
     "babel-preset-metal": "^4.0.0",
     "compression-webpack-plugin": "^1.0.1",
     "css-loader": "^0.28.7",
@@ -65,7 +67,6 @@
     "run-sequence": "^1.1.5",
     "sinon": "1.17.7",
     "uglifyjs-webpack-plugin": "^1.1.2",
-    "webpack": "^3.10.0",
-    "webpack-dashboard": "^1.0.2"
+    "webpack": "^3.10.0"
   }
 }

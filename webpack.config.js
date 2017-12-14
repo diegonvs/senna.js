@@ -2,11 +2,9 @@ const webpack = require('webpack');
 const path = require('path');
 const UglifyJsPlugin = webpack.optimize.UglifyJsPlugin;
 const CompressionPlugin = require("compression-webpack-plugin");
-const DashboardPlugin = require('webpack-dashboard/plugin');
 const outputFile = 'senna';
 const env = process.env.WEBPACK_ENV;
-const cssNano = require("cssnano");
-const OptimizeCSSAssetsPlugin = require("optimize-css-assets-webpack-plugin");
+const babel = require('babel-core');
 
 // // if (env === 'build') {
 // //   plugins.push(new UglifyJsPlugin({ minimize: true }));
@@ -83,38 +81,18 @@ const config = {
     }),
 
     new webpack.optimize.ModuleConcatenationPlugin(),
-   // new DashboardPlugin({ port: 3001 }),
-    // new CompressionPlugin({
-    //   path.resolve(__dirname, )
-    // })
   ]
 
 }
 
-const amd = {
-  entry: './src/senna.js',
-  output: {
-    filename: 'build/amd/' + outputFile + '.js',
-    libraryTarget: 'amd',
-    library: outputFile,
-  },
-  ... config,
-};
+const debug = {
 
-const cjs = {
-  entry: './src/senna.js',
-  output: {
-    filename: 'build/cjs/' + outputFile + '.js',
-    libraryTarget: 'commonjs',
-    library: outputFile,
-  },
-  ... config,
-};
+}
 
 const global = {
   entry: './src/senna.js',
   output: {
-    filename: 'build/global/' + outputFile + '.js',
+    filename: 'build/globals/' + outputFile + '.js',
     libraryTarget: 'global',
     library: outputFile,
   },
@@ -123,4 +101,4 @@ const global = {
 
 
 
-module.exports = [amd, cjs, global];
+module.exports = [global];
