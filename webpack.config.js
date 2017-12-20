@@ -5,6 +5,8 @@ const CompressionPlugin = require("compression-webpack-plugin");
 const outputFile = 'senna';
 const env = process.env.WEBPACK_ENV;
 const babel = require('babel-core');
+const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
+const babelDeps = require('babel-deps');
 
 // // if (env === 'build') {
 // //   plugins.push(new UglifyJsPlugin({ minimize: true }));
@@ -13,10 +15,17 @@ const babel = require('babel-core');
 // //   outputFile = outputFile + '.js';
 // // }
 
+
 const config = {
   target: 'node',
 
   devtool: 'source-map',
+
+  devServer: {
+    hot: true,
+    contentBase: '/build/',
+    publicPath: '/build/'
+  },
 
   module: {
     rules:[
@@ -81,6 +90,8 @@ const config = {
     }),
 
     new webpack.optimize.ModuleConcatenationPlugin(),
+
+    new BundleAnalyzerPlugin()
   ]
 
 }
@@ -98,7 +109,4 @@ const global = {
   },
   ... config,
 };
-
-
-
-module.exports = [global];
+module.exports = [global, test];

@@ -1,5 +1,5 @@
 const { exec } = require('child_process');
-const pkg = require('../package.json');
+const pkg = require('./package.json');
 const deps = pkg.dependencies;
 
 function getFromNodeModule(pkgName){
