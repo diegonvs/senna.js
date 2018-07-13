@@ -1,10 +1,3 @@
-/**
- * Senna.js - A blazing-fast Single Page Application engine
- * @author Liferay, Inc.
- * @version v2.5.5
- * @link http://sennajs.com
- * @license BSD-3-Clause
- */
 (function (global, factory) {
 	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
 	typeof define === 'function' && define.amd ? define(['exports'], factory) :
@@ -18,7 +11,7 @@ if (typeof window !== 'undefined') {
 }
 
 if (typeof document !== 'undefined') {
-	globals.document = document;
+	globals.document = window.document;
 }
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) {
@@ -2407,7 +2400,7 @@ var utils = function () {
 			try {
 				return new Uri(url);
 			} catch (err) {
-				void 0;
+				console.error(err.message + ' ' + url);
 				return false;
 			}
 		}
@@ -5720,7 +5713,7 @@ function encloseNonCapturingGroup(pattern) {
  * @return {string}
  */
 function escape(str) {
-	return str.replace(/([.+*?=^!:()[\]|\/\\])/g, '\\$1');
+	return str.replace(/([.+*?=^!:${}()[\]|\/\\])/g, '\\$1');
 }
 
 /**
@@ -6095,7 +6088,7 @@ var Screen = function (_Cacheable) {
 	createClass(Screen, [{
 		key: 'activate',
 		value: function activate() {
-			void 0;
+			console.log('Screen [' + this + '] activate');
 		}
 
 		/**
@@ -6109,7 +6102,7 @@ var Screen = function (_Cacheable) {
 	}, {
 		key: 'beforeActivate',
 		value: function beforeActivate() {
-			void 0;
+			console.log('Screen [' + this + '] beforeActivate');
 		}
 
 		/**
@@ -6124,7 +6117,7 @@ var Screen = function (_Cacheable) {
 	}, {
 		key: 'beforeDeactivate',
 		value: function beforeDeactivate() {
-			void 0;
+			console.log('Screen [' + this + '] beforeDeactivate');
 		}
 
 		/**
@@ -6160,7 +6153,7 @@ var Screen = function (_Cacheable) {
 	}, {
 		key: 'deactivate',
 		value: function deactivate() {
-			void 0;
+			console.log('Screen [' + this + '] deactivate');
 		}
 
 		/**
@@ -6173,7 +6166,7 @@ var Screen = function (_Cacheable) {
 		key: 'disposeInternal',
 		value: function disposeInternal() {
 			get(Screen.prototype.__proto__ || Object.getPrototypeOf(Screen.prototype), 'disposeInternal', this).call(this);
-			void 0;
+			console.log('Screen [' + this + '] dispose');
 		}
 
 		/**
@@ -6222,7 +6215,7 @@ var Screen = function (_Cacheable) {
 		value: function flip(surfaces) {
 			var _this2 = this;
 
-			void 0;
+			console.log('Screen [' + this + '] flip');
 
 			var transitions = [];
 
@@ -6260,7 +6253,7 @@ var Screen = function (_Cacheable) {
 	}, {
 		key: 'getSurfaceContent',
 		value: function getSurfaceContent() {
-			void 0;
+			console.log('Screen [' + this + '] getSurfaceContent');
 		}
 
 		/**
@@ -6287,7 +6280,7 @@ var Screen = function (_Cacheable) {
 	}, {
 		key: 'load',
 		value: function load() {
-			void 0;
+			console.log('Screen [' + this + '] load');
 			return CancellablePromise.resolve();
 		}
 
@@ -6697,6 +6690,13 @@ Surface.defaultTransition = function (from, to) {
 	}
 };
 
+var NavigationStrategy = {
+	IMMEDIATE: 'immediate',
+	SCHEDULE_LAST: 'scheduleLast'
+};
+
+console.log('Testing');
+
 var App$1 = function (_EventEmitter) {
 	inherits(App, _EventEmitter);
 
@@ -6812,6 +6812,17 @@ var App$1 = function (_EventEmitter) {
 		_this.nativeScrollRestorationSupported = 'scrollRestoration' in globals.window.history;
 
 		/**
+   * When set to NavigationStrategy.SCHEDULE_LAST means that the current navigation
+   * cannot be Cancelled to start another and will be queued in
+   * scheduledNavigationQueue. When NavigationStrategy.IMMEDIATE means that all
+   * navigation will be cancelled to start another.
+   * @type {!string}
+   * @default immediate
+   * @protected
+   */
+		_this.navigationStrategy = NavigationStrategy.IMMEDIATE;
+
+		/**
    * When set to true there is a pendingNavigate that has not yet been
    * resolved or rejected.
    * @type {boolean}
@@ -6860,6 +6871,14 @@ var App$1 = function (_EventEmitter) {
    * @protected
    */
 		_this.routes = [];
+
+		/**
+   * Holds a queue that stores every DOM event that can initiate a navigation.
+   * @type {!Event}
+   * @default []
+   * @protected
+   */
+		_this.scheduledNavigationQueue = [];
 
 		/**
    * Maps the screen instances by the url containing the parameters.
@@ -6995,11 +7014,11 @@ var App$1 = function (_EventEmitter) {
 			var path = utils.getUrlPath(url);
 
 			if (!this.isLinkSameOrigin_(uri.getHost())) {
-				void 0;
+				console.log('Offsite link clicked');
 				return false;
 			}
 			if (!this.isSameBasePath_(path)) {
-				void 0;
+				console.log('Link clicked outside app\'s base path');
 				return false;
 			}
 			// Prevents navigation if it's a hash change on the same url.
@@ -7007,7 +7026,7 @@ var App$1 = function (_EventEmitter) {
 				return false;
 			}
 			if (!this.findRoute(path)) {
-				void 0;
+				console.log('No route for ' + path);
 				return false;
 			}
 
@@ -7043,7 +7062,7 @@ var App$1 = function (_EventEmitter) {
 		key: 'createScreenInstance',
 		value: function createScreenInstance(path, route) {
 			if (!this.pendingNavigate && path === this.activePath) {
-				void 0;
+				console.log('Already at destination, refresh navigation');
 				return this.activeScreen;
 			}
 			/* jshint newcap: false */
@@ -7055,7 +7074,7 @@ var App$1 = function (_EventEmitter) {
 				} else {
 					screen = handler(route) || new Screen();
 				}
-				void 0;
+				console.log('Create screen for [' + path + '] [' + screen + ']');
 			}
 			return screen;
 		}
@@ -7107,7 +7126,7 @@ var App$1 = function (_EventEmitter) {
 				return this.pendingNavigate;
 			}
 
-			void 0;
+			console.log('Navigate to [' + path + ']');
 
 			this.stopPendingNavigate_();
 			this.isNavigationPending = true;
@@ -7119,11 +7138,21 @@ var App$1 = function (_EventEmitter) {
 			}).then(function () {
 				return nextScreen.load(path);
 			}).then(function () {
+				// At this point we cannot stop navigation and all received
+				// navigate candidates will be queued at scheduledNavigationQueue.
+				_this5.navigationStrategy = NavigationStrategy.SCHEDULE_LAST;
+
+				console.log('>>>>>>>>> Agora é a hora ');
+
 				if (_this5.activeScreen) {
 					_this5.activeScreen.deactivate();
 				}
 				_this5.prepareNavigateHistory_(path, nextScreen, opt_replaceHistory);
 				_this5.prepareNavigateSurfaces_(nextScreen, _this5.surfaces, _this5.extractParams(route, path));
+
+				return new Promise(function (resolve) {
+					return setTimeout(resolve, 0);
+				});
 			}).then(function () {
 				return nextScreen.evaluateStyles(_this5.surfaces);
 			}).then(function () {
@@ -7142,6 +7171,13 @@ var App$1 = function (_EventEmitter) {
 				_this5.isNavigationPending = false;
 				_this5.handleNavigateError_(path, nextScreen, reason);
 				throw reason;
+			}).thenAlways(function () {
+				_this5.navigationStrategy = NavigationStrategy.IMMEDIATE;
+
+				if (_this5.scheduledNavigationQueue.length) {
+					var scheduledNavigation = _this5.scheduledNavigationQueue.shift();
+					_this5.maybeNavigate_(scheduledNavigation.href, scheduledNavigation);
+				}
 			});
 		}
 
@@ -7184,7 +7220,7 @@ var App$1 = function (_EventEmitter) {
 			this.pendingNavigate = null;
 			globals.capturedFormElement = null;
 			globals.capturedFormButtonElement = null;
-			void 0;
+			console.log('Navigation done');
 		}
 
 		/**
@@ -7330,7 +7366,7 @@ var App$1 = function (_EventEmitter) {
 		value: function handleNavigateError_(path, nextScreen, error) {
 			var _this6 = this;
 
-			void 0;
+			console.log('Navigation error for [' + nextScreen + '] (' + error + ')');
 			this.emit('navigationError', {
 				error: error,
 				nextScreen: nextScreen,
@@ -7432,6 +7468,20 @@ var App$1 = function (_EventEmitter) {
 				globals.window.history.scrollRestoration = 'manual';
 			}
 		}
+	}, {
+		key: 'maybeScheduleNavigation_',
+		value: function maybeScheduleNavigation_(href, event) {
+			console.log('isNavigationPending', this.isNavigationPending, 'strategy', this.navigationStrategy);
+			if (this.isNavigationPending && this.navigationStrategy === NavigationStrategy.SCHEDULE_LAST) {
+				console.log('scheduled navigation to', href);
+				this.scheduledNavigationQueue = [object.mixin({
+					href: href,
+					isScheduledNavigation: true
+				}, event)];
+				return true;
+			}
+			return false;
+		}
 
 		/**
    * Maybe navigate to a path.
@@ -7446,8 +7496,12 @@ var App$1 = function (_EventEmitter) {
 				return;
 			}
 
-			globals.capturedFormElement = event.capturedFormElement;
-			globals.capturedFormButtonElement = event.capturedFormButtonElement;
+			var isNavigationScheduled = this.maybeScheduleNavigation_(href, event);
+
+			if (isNavigationScheduled) {
+				event.preventDefault();
+				return;
+			}
 
 			var navigateFailed = false;
 			try {
@@ -7457,7 +7511,7 @@ var App$1 = function (_EventEmitter) {
 				navigateFailed = true;
 			}
 
-			if (!navigateFailed) {
+			if (!navigateFailed && !event.isScheduledNavigation) {
 				event.preventDefault();
 			}
 		}
@@ -7621,6 +7675,11 @@ var App$1 = function (_EventEmitter) {
 				throw new Error('HTML5 History is not supported. Senna will not intercept navigation.');
 			}
 
+			if (opt_event) {
+				globals.capturedFormElement = opt_event.capturedFormElement;
+				globals.capturedFormButtonElement = opt_event.capturedFormButtonElement;
+			}
+
 			// When reloading the same path do replaceState instead of pushState to
 			// avoid polluting history with states with the same path.
 			if (path === this.activePath) {
@@ -7662,8 +7721,8 @@ var App$1 = function (_EventEmitter) {
 		key: 'onBeforeNavigateDefault_',
 		value: function onBeforeNavigateDefault_(event) {
 			if (this.pendingNavigate) {
-				if (this.pendingNavigate.path === event.path) {
-					void 0;
+				if (this.pendingNavigate.path === event.path || this.navigationStrategy === NavigationStrategy.SCHEDULE_LAST) {
+					console.log('Waiting');
 					return;
 				}
 			}
@@ -7704,7 +7763,7 @@ var App$1 = function (_EventEmitter) {
 		key: 'onDocClickDelegate_',
 		value: function onDocClickDelegate_(event) {
 			if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.button) {
-				void 0;
+				console.log('Navigate aborted, invalid mouse button or modifier key pressed.');
 				return;
 			}
 			this.maybeNavigate_(event.delegateTarget.href, event);
@@ -7722,7 +7781,7 @@ var App$1 = function (_EventEmitter) {
 		value: function onDocSubmitDelegate_(event) {
 			var form = event.delegateTarget;
 			if (form.method === 'get') {
-				void 0;
+				console.log('GET method not supported');
 				return;
 			}
 			event.capturedFormElement = form;
@@ -7801,7 +7860,7 @@ var App$1 = function (_EventEmitter) {
 			}
 
 			if (state.senna) {
-				void 0;
+				console.log('History navigation to [' + state.path + ']');
 				this.popstateScrollTop = state.scrollTop;
 				this.popstateScrollLeft = state.scrollLeft;
 				if (!this.nativeScrollRestorationSupported) {
@@ -7812,6 +7871,13 @@ var App$1 = function (_EventEmitter) {
 						utils.setReferrer(state.referrer);
 					}
 				});
+				var uri = new Uri(state.path);
+				uri.setHostname(globals.window.location.hostname);
+				uri.setPort(globals.window.location.port);
+				var isNavigationScheduled = this.maybeScheduleNavigation_(uri.toString(), {});
+				if (isNavigationScheduled) {
+					return;
+				}
 				this.navigate(state.path, true);
 			}
 		}
@@ -7855,7 +7921,7 @@ var App$1 = function (_EventEmitter) {
 				endNavigatePayload.error = reason;
 				throw reason;
 			}).thenAlways(function () {
-				if (!_this11.pendingNavigate) {
+				if (!_this11.pendingNavigate && !_this11.scheduledNavigationQueue.length) {
 					removeClasses(globals.document.documentElement, _this11.loadingCssClass);
 					_this11.maybeRestoreNativeScrollRestoration();
 					_this11.captureScrollPositionFromScrollEvent = true;
@@ -7882,7 +7948,7 @@ var App$1 = function (_EventEmitter) {
 				return CancellablePromise.reject(new CancellablePromise.CancellationError('No route for ' + path));
 			}
 
-			void 0;
+			console.log('Prefetching [' + path + ']');
 
 			var nextScreen = this.createScreenInstance(path, route);
 
@@ -7940,7 +8006,7 @@ var App$1 = function (_EventEmitter) {
 			Object.keys(surfaces).forEach(function (id) {
 				var surfaceContent = nextScreen.getSurfaceContent(id, params);
 				surfaces[id].addContent(nextScreen.getId(), surfaceContent);
-				void 0;
+				console.log('Screen [' + nextScreen.getId() + '] add content to surface ' + '[' + surfaces[id] + '] [' + (isDefAndNotNull(surfaceContent) ? '...' : 'empty') + ']');
 			});
 		}
 
@@ -8111,8 +8177,8 @@ var App$1 = function (_EventEmitter) {
 		value: function stopPendingNavigate_() {
 			if (this.pendingNavigate) {
 				this.pendingNavigate.cancel('Cancel pending navigation');
-				this.pendingNavigate = null;
 			}
+			this.pendingNavigate = null;
 		}
 
 		/**
@@ -9438,7 +9504,7 @@ var AppDataAttributeHandler = function (_Disposable) {
 			}
 
 			if (!this.baseElement.hasAttribute(dataAttributes.senna)) {
-				void 0;
+				console.log('Senna was not initialized from data attributes. ' + 'In order to enable its usage from data attributes try setting ' + 'in the base element, e.g. `<body data-senna>`.');
 				return;
 			}
 
@@ -9446,7 +9512,7 @@ var AppDataAttributeHandler = function (_Disposable) {
 				throw new Error('Senna app was already initialized.');
 			}
 
-			void 0;
+			console.log('Senna initialized from data attribute.');
 
 			this.app = new App$1();
 			this.maybeAddRoutes_();
@@ -9508,7 +9574,7 @@ var AppDataAttributeHandler = function (_Disposable) {
 			});
 			if (!this.app.hasRoutes()) {
 				this.app.addRoutes(new Route(/.*/, HtmlScreen));
-				void 0;
+				console.log('Senna can\'t find route elements, adding default.');
 			}
 		}
 
@@ -9551,7 +9617,7 @@ var AppDataAttributeHandler = function (_Disposable) {
 		value: function maybeParseLinkRoute_(link) {
 			var route = new Route(this.maybeParseLinkRoutePath_(link), this.maybeParseLinkRouteHandler_(link));
 			this.app.addRoutes(route);
-			void 0;
+			console.log('Senna scanned route ' + route.getPath());
 		}
 
 		/**
@@ -9598,7 +9664,7 @@ var AppDataAttributeHandler = function (_Disposable) {
 			var basePath = this.baseElement.getAttribute(dataAttributes.basePath);
 			if (isDefAndNotNull(basePath)) {
 				this.app.setBasePath(basePath);
-				void 0;
+				console.log('Senna scanned base path ' + basePath);
 			}
 		}
 
@@ -9613,7 +9679,7 @@ var AppDataAttributeHandler = function (_Disposable) {
 			var linkSelector = this.baseElement.getAttribute(dataAttributes.linkSelector);
 			if (isDefAndNotNull(linkSelector)) {
 				this.app.setLinkSelector(linkSelector);
-				void 0;
+				console.log('Senna scanned link selector ' + linkSelector);
 			}
 		}
 
@@ -9628,7 +9694,7 @@ var AppDataAttributeHandler = function (_Disposable) {
 			var loadingCssClass = this.baseElement.getAttribute(dataAttributes.loadingCssClass);
 			if (isDefAndNotNull(loadingCssClass)) {
 				this.app.setLoadingCssClass(loadingCssClass);
-				void 0;
+				console.log('Senna scanned loading css class ' + loadingCssClass);
 			}
 		}
 
@@ -9647,7 +9713,7 @@ var AppDataAttributeHandler = function (_Disposable) {
 				} else {
 					this.app.setUpdateScrollPosition(true);
 				}
-				void 0;
+				console.log('Senna scanned update scroll position ' + updateScrollPosition);
 			}
 		}
 
@@ -9706,7 +9772,7 @@ globals.document.addEventListener('DOMContentLoaded', function () {
 /**
  * @returns String current senna version
  */
-var version = '2.5.5';
+var version = '<%= version %>';
 
 exports['default'] = App$1;
 exports.dataAttributeHandler = dataAttributeHandler;

@@ -11,7 +11,7 @@ define(['exports'], function (exports) {
 	}
 
 	if (typeof document !== 'undefined') {
-		globals.document = document;
+		globals.document = window.document;
 	}
 
 	exports.default = globals;

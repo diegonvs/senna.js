@@ -17,6 +17,8 @@ const NavigationStrategy = {
 	SCHEDULE_LAST: 'scheduleLast'
 };
 
+console.log('Testing');
+
 class App extends EventEmitter {
 
 	/**
@@ -428,6 +430,8 @@ class App extends EventEmitter {
 				// navigate candidates will be queued at scheduledNavigationQueue.
 				this.navigationStrategy = NavigationStrategy.SCHEDULE_LAST;
 
+        console.log('>>>>>>>>> Agora é a hora ');
+
 				if (this.activeScreen) {
 					this.activeScreen.deactivate();
 				}
@@ -437,6 +441,8 @@ class App extends EventEmitter {
 					this.surfaces,
 					this.extractParams(route, path)
 				);
+
+        return new Promise((resolve) => setTimeout(resolve, 0));
 			})
 			.then(() => nextScreen.evaluateStyles(this.surfaces))
 			.then(() => nextScreen.flip(this.surfaces))
@@ -454,8 +460,8 @@ class App extends EventEmitter {
 				this.navigationStrategy = NavigationStrategy.IMMEDIATE;
 
 				if (this.scheduledNavigationQueue.length) {
-					const event = this.scheduledNavigationQueue.shift();
-					this.maybeNavigate_(event.delegateTarget.href, event);
+					const scheduledNavigation = this.scheduledNavigationQueue.shift();
+					this.maybeNavigate_(scheduledNavigation.href, scheduledNavigation);
 				}
 			});
 	}
@@ -690,6 +696,19 @@ class App extends EventEmitter {
 		}
 	}
 
+	maybeScheduleNavigation_(href, event) {
+    console.log('isNavigationPending', this.isNavigationPending, 'strategy', this.navigationStrategy);
+		if (this.isNavigationPending && this.navigationStrategy === NavigationStrategy.SCHEDULE_LAST) {
+      console.log('scheduled navigation to', href);
+			this.scheduledNavigationQueue = [object.mixin({
+        href,
+        isScheduledNavigation: true
+      }, event)]
+      return true;
+		}
+    return false;
+	}
+
 	/**
 	 * Maybe navigate to a path.
 	 * @param {string} href Information about the link's href.
@@ -700,20 +719,12 @@ class App extends EventEmitter {
 			return;
 		}
 
-		if (this.isNavigationPending && this.navigationStrategy === NavigationStrategy.SCHEDULE_LAST) {
-			event.preventDefault();
+		const isNavigationScheduled = this.maybeScheduleNavigation_(href, event);
 
-			this.scheduledNavigationQueue = [
-				object.mixin({
-					isScheduledEvent: true
-				}, event)
-			];
-
-			return;
-		}
-
-		globals.capturedFormElement = event.capturedFormElement;
-		globals.capturedFormButtonElement = event.capturedFormButtonElement;
+    if (isNavigationScheduled) {
+      event.preventDefault();
+      return;
+    }
 
 		var navigateFailed = false;
 		try {
@@ -723,7 +734,7 @@ class App extends EventEmitter {
 			navigateFailed = true;
 		}
 
-		if (!navigateFailed && !event.isScheduledEvent) {
+		if (!navigateFailed && !event.isScheduledNavigation) {
 			event.preventDefault();
 		}
 	}
@@ -854,6 +865,11 @@ class App extends EventEmitter {
 		if (!utils.isHtml5HistorySupported()) {
 			throw new Error('HTML5 History is not supported. Senna will not intercept navigation.');
 		}
+
+    if (opt_event) {
+      globals.capturedFormElement = opt_event.capturedFormElement;
+      globals.capturedFormButtonElement = opt_event.capturedFormButtonElement;
+    }
 
 		// When reloading the same path do replaceState instead of pushState to
 		// avoid polluting history with states with the same path.
@@ -1023,6 +1039,13 @@ class App extends EventEmitter {
 					utils.setReferrer(state.referrer);
 				}
 			});
+      const uri = new Uri(state.path);
+      uri.setHostname(globals.window.location.hostname);
+      uri.setPort(globals.window.location.port);
+			const isNavigationScheduled = this.maybeScheduleNavigation_(uri.toString(), {});
+      if (isNavigationScheduled) {
+        return;
+      }
 			this.navigate(state.path, true);
 		}
 	}
