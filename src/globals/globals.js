@@ -5,7 +5,7 @@ if (typeof window !== 'undefined') {
 }
 
 if (typeof document !== 'undefined') {
-	globals.document = document;
+	globals.document = window.document;
 }
 
 export default globals;

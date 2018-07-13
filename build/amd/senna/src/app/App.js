@@ -100,6 +100,13 @@ define(['exports', 'metal-dom/src/all/dom', 'metal/src/metal', 'metal-events/src
 		if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass;
 	}
 
+	var NavigationStrategy = {
+		IMMEDIATE: 'immediate',
+		SCHEDULE_LAST: 'scheduleLast'
+	};
+
+	void 0;
+
 	var App = function (_EventEmitter) {
 		_inherits(App, _EventEmitter);
 
@@ -215,6 +222,17 @@ define(['exports', 'metal-dom/src/all/dom', 'metal/src/metal', 'metal-events/src
 			_this.nativeScrollRestorationSupported = 'scrollRestoration' in _globals2.default.window.history;
 
 			/**
+    * When set to NavigationStrategy.SCHEDULE_LAST means that the current navigation
+    * cannot be Cancelled to start another and will be queued in
+    * scheduledNavigationQueue. When NavigationStrategy.IMMEDIATE means that all
+    * navigation will be cancelled to start another.
+    * @type {!string}
+    * @default immediate
+    * @protected
+    */
+			_this.navigationStrategy = NavigationStrategy.IMMEDIATE;
+
+			/**
     * When set to true there is a pendingNavigate that has not yet been
     * resolved or rejected.
     * @type {boolean}
@@ -263,6 +281,14 @@ define(['exports', 'metal-dom/src/all/dom', 'metal/src/metal', 'metal-events/src
     * @protected
     */
 			_this.routes = [];
+
+			/**
+    * Holds a queue that stores every DOM event that can initiate a navigation.
+    * @type {!Event}
+    * @default []
+    * @protected
+    */
+			_this.scheduledNavigationQueue = [];
 
 			/**
     * Maps the screen instances by the url containing the parameters.
@@ -380,7 +406,7 @@ define(['exports', 'metal-dom/src/all/dom', 'metal/src/metal', 'metal-events/src
 
 				var path = _utils2.default.getUrlPath(url);
 
-				if (!this.isLinkSameOrigin_(uri.getHostname())) {
+				if (!this.isLinkSameOrigin_(uri.getHost())) {
 					void 0;
 					return false;
 				}
@@ -454,11 +480,6 @@ define(['exports', 'metal-dom/src/all/dom', 'metal/src/metal', 'metal-events/src
 			value: function doNavigate_(path, opt_replaceHistory) {
 				var _this5 = this;
 
-				if (this.activeScreen && this.activeScreen.beforeDeactivate()) {
-					this.pendingNavigate = _Promise2.default.reject(new _Promise2.default.CancellationError('Cancelled by active screen'));
-					return this.pendingNavigate;
-				}
-
 				var route = this.findRoute(path);
 				if (!route) {
 					this.pendingNavigate = _Promise2.default.reject(new _Promise2.default.CancellationError('No route for ' + path));
@@ -472,12 +493,26 @@ define(['exports', 'metal-dom/src/all/dom', 'metal/src/metal', 'metal-events/src
 
 				var nextScreen = this.createScreenInstance(path, route);
 
-				return nextScreen.load(path).then(function () {
+				return this.maybePreventDeactivate_().then(function () {
+					return _this5.maybePreventActivate_(nextScreen);
+				}).then(function () {
+					return nextScreen.load(path);
+				}).then(function () {
+					// At this point we cannot stop navigation and all received
+					// navigate candidates will be queued at scheduledNavigationQueue.
+					_this5.navigationStrategy = NavigationStrategy.SCHEDULE_LAST;
+
+					void 0;
+
 					if (_this5.activeScreen) {
 						_this5.activeScreen.deactivate();
 					}
 					_this5.prepareNavigateHistory_(path, nextScreen, opt_replaceHistory);
 					_this5.prepareNavigateSurfaces_(nextScreen, _this5.surfaces, _this5.extractParams(route, path));
+
+					return new Promise(function (resolve) {
+						return setTimeout(resolve, 0);
+					});
 				}).then(function () {
 					return nextScreen.evaluateStyles(_this5.surfaces);
 				}).then(function () {
@@ -496,6 +531,13 @@ define(['exports', 'metal-dom/src/all/dom', 'metal/src/metal', 'metal-events/src
 					_this5.isNavigationPending = false;
 					_this5.handleNavigateError_(path, nextScreen, reason);
 					throw reason;
+				}).thenAlways(function () {
+					_this5.navigationStrategy = NavigationStrategy.IMMEDIATE;
+
+					if (_this5.scheduledNavigationQueue.length) {
+						var scheduledNavigation = _this5.scheduledNavigationQueue.shift();
+						_this5.maybeNavigate_(scheduledNavigation.href, scheduledNavigation);
+					}
 				});
 			}
 		}, {
@@ -616,8 +658,8 @@ define(['exports', 'metal-dom/src/all/dom', 'metal/src/metal', 'metal-events/src
 			}
 		}, {
 			key: 'isLinkSameOrigin_',
-			value: function isLinkSameOrigin_(hostname) {
-				return hostname === _globals2.default.window.location.hostname;
+			value: function isLinkSameOrigin_(host) {
+				return host === _globals2.default.window.location.host;
 			}
 		}, {
 			key: 'isSameBasePath_',
@@ -659,14 +701,29 @@ define(['exports', 'metal-dom/src/all/dom', 'metal/src/metal', 'metal-events/src
 				}
 			}
 		}, {
+			key: 'maybeScheduleNavigation_',
+			value: function maybeScheduleNavigation_(href, event) {
+				void 0;
+				if (this.isNavigationPending && this.navigationStrategy === NavigationStrategy.SCHEDULE_LAST) {
+					this.scheduledNavigationQueue = [_metal.object.mixin({
+						href: href,
+						isScheduledNavigation: true
+					}, event)];
+				}
+			}
+		}, {
 			key: 'maybeNavigate_',
 			value: function maybeNavigate_(href, event) {
 				if (!this.canNavigate(href)) {
 					return;
 				}
 
-				_globals2.default.capturedFormElement = event.capturedFormElement;
-				_globals2.default.capturedFormButtonElement = event.capturedFormButtonElement;
+				var isNavigationScheduled = this.maybeScheduleNavigation_(href, event);
+
+				if (isNavigationScheduled) {
+					event.preventDefault();
+					return;
+				}
 
 				var navigateFailed = false;
 				try {
@@ -676,7 +733,7 @@ define(['exports', 'metal-dom/src/all/dom', 'metal/src/metal', 'metal-events/src
 					navigateFailed = true;
 				}
 
-				if (!navigateFailed) {
+				if (!navigateFailed && !event.isScheduledNavigation) {
 					event.preventDefault();
 				}
 			}
@@ -695,9 +752,39 @@ define(['exports', 'metal-dom/src/all/dom', 'metal/src/metal', 'metal-events/src
 						}
 					};
 
-					// mark the updated handler due unwanted recursion 
+					// mark the updated handler due unwanted recursion
 					window.onbeforeunload._overloaded = true;
 				}
+			}
+		}, {
+			key: 'maybePreventActivate_',
+			value: function maybePreventActivate_(nextScreen) {
+				var _this8 = this;
+
+				return _Promise2.default.resolve().then(function () {
+					return nextScreen.beforeActivate();
+				}).then(function (prevent) {
+					if (prevent) {
+						_this8.pendingNavigate = _Promise2.default.reject(new _Promise2.default.CancellationError('Cancelled by next screen'));
+						return _this8.pendingNavigate;
+					}
+				});
+			}
+		}, {
+			key: 'maybePreventDeactivate_',
+			value: function maybePreventDeactivate_() {
+				var _this9 = this;
+
+				return _Promise2.default.resolve().then(function () {
+					if (_this9.activeScreen) {
+						return _this9.activeScreen.beforeDeactivate();
+					}
+				}).then(function (prevent) {
+					if (prevent) {
+						_this9.pendingNavigate = _Promise2.default.reject(new _Promise2.default.CancellationError('Cancelled by active screen'));
+						return _this9.pendingNavigate;
+					}
+				});
 			}
 		}, {
 			key: 'maybeRepositionScrollToHashedAnchor',
@@ -749,6 +836,11 @@ define(['exports', 'metal-dom/src/all/dom', 'metal/src/metal', 'metal-events/src
 					throw new Error('HTML5 History is not supported. Senna will not intercept navigation.');
 				}
 
+				if (opt_event) {
+					_globals2.default.capturedFormElement = opt_event.capturedFormElement;
+					_globals2.default.capturedFormButtonElement = opt_event.capturedFormButtonElement;
+				}
+
 				// When reloading the same path do replaceState instead of pushState to
 				// avoid polluting history with states with the same path.
 				if (path === this.activePath) {
@@ -774,7 +866,7 @@ define(['exports', 'metal-dom/src/all/dom', 'metal/src/metal', 'metal-events/src
 			key: 'onBeforeNavigateDefault_',
 			value: function onBeforeNavigateDefault_(event) {
 				if (this.pendingNavigate) {
-					if (this.pendingNavigate.path === event.path) {
+					if (this.pendingNavigate.path === event.path || this.navigationStrategy === NavigationStrategy.SCHEDULE_LAST) {
 						void 0;
 						return;
 					}
@@ -825,13 +917,13 @@ define(['exports', 'metal-dom/src/all/dom', 'metal/src/metal', 'metal-events/src
 		}, {
 			key: 'onLoad_',
 			value: function onLoad_() {
-				var _this8 = this;
+				var _this10 = this;
 
 				this.skipLoadPopstate = true;
 				setTimeout(function () {
 					// The timeout ensures that popstate events will be unblocked right
 					// after the load event occured, but not in the same event-loop cycle.
-					_this8.skipLoadPopstate = false;
+					_this10.skipLoadPopstate = false;
 				}, 0);
 				// Try to reposition scroll to the hashed anchor when page loads.
 				this.maybeRepositionScrollToHashedAnchor();
@@ -876,6 +968,15 @@ define(['exports', 'metal-dom/src/all/dom', 'metal/src/metal', 'metal-events/src
 					if (!this.nativeScrollRestorationSupported) {
 						this.lockHistoryScrollPosition_();
 					}
+					this.once('endNavigate', function () {
+						if (state.referrer) {
+							_utils2.default.setReferrer(state.referrer);
+						}
+					});
+					var isNavigationScheduled = this.maybeScheduleNavigation_(state.path, {});
+					if (isNavigationScheduled) {
+						return;
+					}
 					this.navigate(state.path, true);
 				}
 			}
@@ -889,7 +990,7 @@ define(['exports', 'metal-dom/src/all/dom', 'metal/src/metal', 'metal-events/src
 		}, {
 			key: 'onStartNavigate_',
 			value: function onStartNavigate_(event) {
-				var _this9 = this;
+				var _this11 = this;
 
 				this.maybeDisableNativeScrollRestoration();
 				this.captureScrollPositionFromScrollEvent = false;
@@ -904,12 +1005,12 @@ define(['exports', 'metal-dom/src/all/dom', 'metal/src/metal', 'metal-events/src
 					endNavigatePayload.error = reason;
 					throw reason;
 				}).thenAlways(function () {
-					if (!_this9.pendingNavigate) {
-						(0, _dom.removeClasses)(_globals2.default.document.documentElement, _this9.loadingCssClass);
-						_this9.maybeRestoreNativeScrollRestoration();
-						_this9.captureScrollPositionFromScrollEvent = true;
+					if (!_this11.pendingNavigate && !_this11.scheduledNavigationQueue.length) {
+						(0, _dom.removeClasses)(_globals2.default.document.documentElement, _this11.loadingCssClass);
+						_this11.maybeRestoreNativeScrollRestoration();
+						_this11.captureScrollPositionFromScrollEvent = true;
 					}
-					_this9.emit('endNavigate', endNavigatePayload);
+					_this11.emit('endNavigate', endNavigatePayload);
 				});
 
 				this.pendingNavigate.path = event.path;
@@ -917,7 +1018,7 @@ define(['exports', 'metal-dom/src/all/dom', 'metal/src/metal', 'metal-events/src
 		}, {
 			key: 'prefetch',
 			value: function prefetch(path) {
-				var _this10 = this;
+				var _this12 = this;
 
 				var route = this.findRoute(path);
 				if (!route) {
@@ -929,9 +1030,9 @@ define(['exports', 'metal-dom/src/all/dom', 'metal/src/metal', 'metal-events/src
 				var nextScreen = this.createScreenInstance(path, route);
 
 				return nextScreen.load(path).then(function () {
-					return _this10.screens[path] = nextScreen;
+					return _this12.screens[path] = nextScreen;
 				}).catch(function (reason) {
-					_this10.handleNavigateError_(path, nextScreen, reason);
+					_this12.handleNavigateError_(path, nextScreen, reason);
 					throw reason;
 				});
 			}
@@ -982,12 +1083,12 @@ define(['exports', 'metal-dom/src/all/dom', 'metal/src/metal', 'metal-events/src
 		}, {
 			key: 'removeScreen',
 			value: function removeScreen(path) {
-				var _this11 = this;
+				var _this13 = this;
 
 				var screen = this.screens[path];
 				if (screen) {
 					Object.keys(this.surfaces).forEach(function (surfaceId) {
-						return _this11.surfaces[surfaceId].remove(screen.getId());
+						return _this13.surfaces[surfaceId].remove(screen.getId());
 					});
 					screen.dispose();
 					delete this.screens[path];
@@ -1058,13 +1159,13 @@ define(['exports', 'metal-dom/src/all/dom', 'metal/src/metal', 'metal-events/src
 			value: function stopPendingNavigate_() {
 				if (this.pendingNavigate) {
 					this.pendingNavigate.cancel('Cancel pending navigation');
-					this.pendingNavigate = null;
 				}
+				this.pendingNavigate = null;
 			}
 		}, {
 			key: 'syncScrollPositionSyncThenAsync_',
 			value: function syncScrollPositionSyncThenAsync_() {
-				var _this12 = this;
+				var _this14 = this;
 
 				var state = _globals2.default.window.history.state;
 				if (!state) {
@@ -1075,7 +1176,7 @@ define(['exports', 'metal-dom/src/all/dom', 'metal/src/metal', 'metal-events/src
 				var scrollLeft = state.scrollLeft;
 
 				var sync = function sync() {
-					if (_this12.updateScrollPosition) {
+					if (_this14.updateScrollPosition) {
 						_globals2.default.window.scrollTo(scrollLeft, scrollTop);
 					}
 				};
@@ -1089,11 +1190,19 @@ define(['exports', 'metal-dom/src/all/dom', 'metal/src/metal', 'metal-events/src
 		}, {
 			key: 'updateHistory_',
 			value: function updateHistory_(title, path, state, opt_replaceHistory) {
+				var referrer = _globals2.default.window.location.href;
+
+				if (state) {
+					state.referrer = referrer;
+				}
+
 				if (opt_replaceHistory) {
 					_globals2.default.window.history.replaceState(state, title, path);
 				} else {
 					_globals2.default.window.history.pushState(state, title, path);
 				}
+
+				_utils2.default.setReferrer(referrer);
 
 				var titleNode = _globals2.default.document.querySelector('title');
 				if (titleNode) {
